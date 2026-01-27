@@ -1,0 +1,72 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-lock.yaml
+
+# Expo / React Native
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Build outputs
+android/app/build/
+android/build/
+ios/build/
+build/
+.gradle/
+
+# APK / AAB / IPA
+*.apk
+*.aab
+*.ipa
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# IDE
+.idea/
+
+# Metro / React Native cache
+.cache/
+metro-cache/
+haste-map-*
+
+# Coverage
+coverage/
+
+# Temporary
+tmp/
+temp/
+
+# TypeScript
+*.tsbuildinfo
+
+# EAS
+.eas/
+
+# CocoaPods
+ios/Pods/
+
+# Android local config
+android/local.properties
+
+# Xcode
+*.xcworkspace
+*.xcuserdata
