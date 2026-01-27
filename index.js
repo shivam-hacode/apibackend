@@ -5,6 +5,9 @@ const cors = require('cors');
 const router = require('./src/router/resultRoutes.js');
 
 const loginrouter = require('./src/router/authRouter.js');
+const appConfigRouterModule = require('./src/router/appConfigRouter.js');
+const appConfigRouter = appConfigRouterModule;
+const appConfigRootRouter = appConfigRouterModule.rootRouter;
 const Result2 = require('./src/models/ScrapperResultModel.js');
 require('./src/config/dbconnect.js');
 require('./src/scheduler.js');
@@ -14,6 +17,9 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api', router);
 app.use('/api', loginrouter);
+app.use('/api', appConfigRouter); // /api/app-config
+// App config routes (accessible at root level for /app and /ota)
+app.use('/', appConfigRootRouter);
 
 // Sample route
 app.get('/api/hello', (req, res) => {

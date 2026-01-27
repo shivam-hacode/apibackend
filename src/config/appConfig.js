@@ -1,87 +1,99 @@
 // config/appConfig.js
 require('dotenv').config();
+const AppVersionConfig = require('../models/AppVersionConfig');
 
 /**
  * App Configuration Service
  * Manages app version requirements and update settings
+ * Supports configuration from DB with fallback to environment variables
  */
 class AppConfigService {
 	constructor() {
-		// Get configuration from environment variables with defaults
-		this.minimumRequiredVersion =
-			process.env.MINIMUM_REQUIRED_VERSION || '2.0.0';
-		this.latestVersion = process.env.LATEST_VERSION || '2.0.0';
-		// Default to true if not set, only false if explicitly 'false'
-		this.forceUpdate = process.env.FORCE_UPDATE !== 'false';
-		this.apkUrl = process.env.APK_URL || 'https://mydomain.com/app-v2.apk';
+		// Cache for DB config
+		this.configCache = null;
+		this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
+		this.lastCacheTime = 0;
+	}
+
+	/**
+	 * Get configuration from DB or env (with caching)
+	 * @returns {Promise<Object>} Configuration object
+	 */
+	async getConfig() {
+		const now = Date.now();
+		
+		// Return cached config if still valid
+		if (this.configCache && (now - this.lastCacheTime) < this.cacheExpiry) {
+			return this.configCache;
+		}
+
+		try {
+			// Try to get from DB first
+			const dbConfig = await AppVersionConfig.getConfig();
+			
+			this.configCache = {
+				minimumRequiredVersion: dbConfig.minimumRequiredVersion || process.env.MINIMUM_REQUIRED_VERSION || '2.0.0',
+				latestVersion: dbConfig.latestVersion || process.env.LATEST_VERSION || '2.0.0',
+				otaUrl: dbConfig.otaUrl || process.env.OTA_URL || '',
+				forceUpdate: dbConfig.forceUpdate !== undefined ? dbConfig.forceUpdate : (process.env.FORCE_UPDATE !== 'false'),
+			};
+			
+			this.lastCacheTime = now;
+			return this.configCache;
+		} catch (error) {
+			console.error('Error fetching config from DB, using env fallback:', error);
+			
+			// Fallback to environment variables
+			this.configCache = {
+				minimumRequiredVersion: process.env.MINIMUM_REQUIRED_VERSION || '2.0.0',
+				latestVersion: process.env.LATEST_VERSION || '2.0.0',
+				otaUrl: process.env.OTA_URL || '',
+				forceUpdate: process.env.FORCE_UPDATE !== 'false',
+			};
+			
+			this.lastCacheTime = now;
+			return this.configCache;
+		}
 	}
 
 	/**
 	 * Get app configuration for clients
-	 * @returns {Object} App configuration object
+	 * @returns {Promise<Object>} App configuration object
 	 */
-	getAppConfig() {
+	async getAppConfig() {
+		const config = await this.getConfig();
 		return {
-			minimumRequiredVersion: this.minimumRequiredVersion,
-			latestVersion: this.latestVersion,
-			forceUpdate: this.forceUpdate,
-			apkUrl: this.apkUrl,
+			version: config.latestVersion,
+			minimumRequiredVersion: config.minimumRequiredVersion,
+			otaUrl: config.otaUrl,
+			forceUpdate: config.forceUpdate,
 		};
 	}
 
 	/**
-	 * Check if provided version meets the minimum requirement
-	 * @param {string} version - Version to check (e.g., "2.0.0")
-	 * @returns {boolean} True if version is acceptable
+	 * Get the required version (async)
+	 * @returns {Promise<string>} Required version
 	 */
-	isVersionAllowed(version) {
-		if (!version) {
-			return false;
-		}
-
-		// Normalize version strings for comparison
-		const normalizeVersion = (v) => {
-			return v
-				.split('.')
-				.map((num) => parseInt(num, 10) || 0)
-				.join('.');
-		};
-
-		const normalizedRequired = normalizeVersion(this.minimumRequiredVersion);
-		const normalizedProvided = normalizeVersion(version);
-
-		// Compare version strings (semantic versioning)
-		return this.compareVersions(normalizedProvided, normalizedRequired) >= 0;
+	async getRequiredVersion() {
+		const config = await this.getConfig();
+		return config.minimumRequiredVersion;
 	}
 
 	/**
-	 * Compare two version strings
-	 * @param {string} version1 - First version
-	 * @param {string} version2 - Second version
-	 * @returns {number} -1 if version1 < version2, 0 if equal, 1 if version1 > version2
+	 * Get OTA URL
+	 * @returns {Promise<string>} OTA URL
 	 */
-	compareVersions(version1, version2) {
-		const v1Parts = version1.split('.').map(Number);
-		const v2Parts = version2.split('.').map(Number);
-		const maxLength = Math.max(v1Parts.length, v2Parts.length);
-
-		for (let i = 0; i < maxLength; i++) {
-			const v1Part = v1Parts[i] || 0;
-			const v2Part = v2Parts[i] || 0;
-
-			if (v1Part < v2Part) return -1;
-			if (v1Part > v2Part) return 1;
-		}
-
-		return 0;
+	async getOtaUrl() {
+		const config = await this.getConfig();
+		return config.otaUrl;
 	}
 
 	/**
-	 * Get the required version
-	 * @returns {string} Required version
+	 * Invalidate cache (useful after updating config in DB)
 	 */
-	getRequiredVersion() {
-		return this.minimumRequiredVersion;
+	invalidateCache() {
+		this.configCache = null;
+		this.lastCacheTime = 0;
 	}
 }
 
