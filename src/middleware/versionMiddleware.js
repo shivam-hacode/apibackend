@@ -3,15 +3,15 @@ const appConfig = require('../config/appConfig');
 const semver = require('semver');
 
 /**
- * Version Check Middleware
+ * Strict Version Check Middleware
  * 
  * Rules:
- * - If no x-app-version header: allow through (for web clients)
- * - If version < minimum required: return 426 with forceUpdate JSON
- * - Otherwise: allow through
+ * - If X-App-Version header is missing: reject with 426
+ * - If version < 2.0.0 (or minimum required): reject with 426
+ * - If version >= 2.0.0: allow through
  * 
  * Usage:
- * Apply globally to all API routes to enforce mobile app version validation
+ * Apply to specific API routes that require version validation
  */
 const versionCheckMiddleware = async (req, res, next) => {
 	// Get app version from header (case-insensitive check)
@@ -20,39 +20,46 @@ const versionCheckMiddleware = async (req, res, next) => {
 		req.headers['X-App-Version'] || 
 		req.headers['X-APP-VERSION'];
 
-	// If no header, allow through (for web clients)
-	if (!appVersion) {
-		return next();
-	}
-
-	// Get minimum required version (from DB or env)
+	// Get minimum required version (from DB or env, default 2.0.0)
 	const minVersion = await appConfig.getRequiredVersion();
 
-	// Validate version format using semver
+	// Rule 1: Reject if header is missing
+	if (!appVersion) {
+		console.warn(`[Version Check] Blocked request from ${req.path} - Missing X-App-Version header`);
+		
+		return res.status(426).json({
+			forceUpdate: true,
+			message: 'App update required. Please update to version 2.0.0 or higher.',
+			changelog: 'Please update to the latest version for continued access.',
+			minRequiredVersion: minVersion,
+		});
+	}
+
+	// Rule 2: Validate version format using semver
 	if (!semver.valid(appVersion)) {
 		console.warn(`[Version Check] Invalid version format: ${appVersion}`);
 		
 		return res.status(426).json({
-			success: false,
 			forceUpdate: true,
-			message: `Please update the app to version ${minVersion} or above to continue`,
-			minimumVersion: minVersion,
+			message: 'App update required. Please update to version 2.0.0 or higher.',
+			changelog: 'Please update to the latest version for continued access.',
+			minRequiredVersion: minVersion,
 		});
 	}
 
-	// Check if version meets minimum requirement
+	// Rule 3: Check if version meets minimum requirement (must be >= 2.0.0)
 	if (semver.lt(appVersion, minVersion)) {
 		console.warn(`[Version Check] Blocked request from ${req.path} - Version ${appVersion} is below minimum ${minVersion}`);
 		
 		return res.status(426).json({
-			success: false,
 			forceUpdate: true,
-			message: `Please update the app to version ${minVersion} or above to continue`,
-			minimumVersion: minVersion,
+			message: 'App update required. Please update to version 2.0.0 or higher.',
+			changelog: 'Please update to the latest version for continued access.',
+			minRequiredVersion: minVersion,
 		});
 	}
 
-	// Version is valid (>= minimum), proceed to next middleware
+	// Version is valid (>= 2.0.0), proceed to next middleware
 	next();
 };
 

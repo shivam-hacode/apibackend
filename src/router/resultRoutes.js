@@ -14,6 +14,7 @@ const {
 	fetchAllFuckingResult,
 } = require('../controller/ResultController');
 const authenticate = require('../middleware/authMiddleware');
+const versionCheckMiddleware = require('../middleware/versionMiddleware');
 const router = express.Router();
 
 router.post('/result', authenticate, CreateNewResult);
@@ -26,12 +27,15 @@ router.post(
 );
 router.get('/fetch-cate-result', authenticate, FetchAllCategories);
 router.get('/fetch-result-by-date/:date/:categoryname', GetResultsWithDate);
-router.get('/fetch-result-direct', FetchAllResultWithoutAuthcode);
+// Apply version check middleware to this endpoint
+router.get('/fetch-result-direct', versionCheckMiddleware, FetchAllResultWithoutAuthcode);
 router.get('/fetch-category-direct', FetchAllCategoriesWithoutAuthcode);
 
 router.post('/result-with-authcode', CreateNewResult);
+// Apply version check middleware to this endpoint
 router.get(
 	'/fetch-results-by-month/:selectedDate/:categoryname/:mode',
+	versionCheckMiddleware,
 	FetchResultsByMonth
 );
 router.get('/result/:id', authenticate, getresultbyId);
