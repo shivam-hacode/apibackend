@@ -8,7 +8,7 @@
  * 
  * Behavior:
  * - Detects old mobile apps via user-agent patterns
- * - Returns HTTP 200 with forceUpdate JSON (not error status)
+ * - Returns HTTP 400 (error status) with forceUpdate JSON so app's error handler can show it
  * - Allows web browsers and new apps to proceed normally
  * 
  * @param {Object} req - Express request object
@@ -36,12 +36,19 @@ const forceUpdateMiddleware = (req, res, next) => {
 	const isOldMobileApp = isOldMobileAppRequest(userAgent, origin, referer);
 
 	// If detected as old mobile app, force update
+	// Return error status (400) so app's error handler can catch and show it in alert/prompt
 	if (isOldMobileApp) {
-		return res.status(200).json({
+		return res.status(400).json({
 			success: false,
 			forceUpdate: true,
 			message: 'A new version of the app is available. Please update from https://mdresult.com',
 			updateUrl: UPDATE_URL,
+			error: 'App update required',
+			// Additional fields for app error handler
+			data: {
+				forceUpdate: true,
+				updateUrl: UPDATE_URL,
+			},
 		});
 	}
 
