@@ -22,12 +22,18 @@ const versionCheckMiddleware = (req, res, next) => {
 	// Get version from header (Express normalizes headers to lowercase)
 	const appVersion = req.headers['x-app-version'] || req.get('x-app-version');
 
+	// Update URL for app download
+	const UPDATE_URL = 'https://mdresult.com';
+
 	// Rule 1: Reject if header is missing
 	if (!appVersion || appVersion.trim() === '') {
 		return res.status(426).json({
 			success: false,
 			forceUpdate: true,
-			message: 'Please update app from mdresult.com',
+			message: 'App update required. Please update the app from mdresult.com',
+			updateUrl: UPDATE_URL,
+			downloadUrl: UPDATE_URL,
+			website: 'mdresult.com',
 		});
 	}
 
@@ -39,7 +45,10 @@ const versionCheckMiddleware = (req, res, next) => {
 		return res.status(426).json({
 			success: false,
 			forceUpdate: true,
-			message: 'Please update app from mdresult.com',
+			message: 'App update required. Please update the app from mdresult.com',
+			updateUrl: UPDATE_URL,
+			downloadUrl: UPDATE_URL,
+			website: 'mdresult.com',
 		});
 	}
 
@@ -48,7 +57,10 @@ const versionCheckMiddleware = (req, res, next) => {
 		return res.status(426).json({
 			success: false,
 			forceUpdate: true,
-			message: 'Please update app from mdresult.com',
+			message: 'App update required. Please update the app from mdresult.com',
+			updateUrl: UPDATE_URL,
+			downloadUrl: UPDATE_URL,
+			website: 'mdresult.com',
 		});
 	}
 
