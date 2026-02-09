@@ -1,4 +1,4 @@
-// middleware/versionMiddleware.js
+// middleware/versionCheckMiddleware.js
 const semver = require('semver');
 
 /**
