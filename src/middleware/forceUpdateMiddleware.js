@@ -1,15 +1,17 @@
 // middleware/forceUpdateMiddleware.js
+const semver = require('semver');
 
 /**
  * Force Update Middleware
  * 
- * Detects old mobile app versions and forces them to update
- * Uses user-agent and other headers to identify old mobile apps
+ * Detects old mobile app versions (< 2.0.0) and forces them to update
+ * Uses version header and user-agent patterns to identify old mobile apps
  * 
  * Behavior:
- * - Detects old mobile apps via user-agent patterns
- * - Returns HTTP 400 (error status) with forceUpdate JSON so app's error handler can show it
- * - Allows web browsers and new apps to proceed normally
+ * - Checks x-app-version header: if < 2.0.0 → force update
+ * - If no version header but old app pattern detected → force update
+ * - Returns HTTP 400 with forceUpdate JSON (alert won't be dismissible)
+ * - Allows web browsers and new apps (>= 2.0.0) to proceed normally
  * 
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -18,11 +20,13 @@
 const forceUpdateMiddleware = (req, res, next) => {
 	// Update URL
 	const UPDATE_URL = 'https://mdresult.com';
+	const MINIMUM_VERSION = '2.0.0';
 
 	// Get headers (Express normalizes to lowercase)
 	const userAgent = (req.headers['user-agent'] || '').toLowerCase();
 	const origin = (req.headers['origin'] || '').toLowerCase();
 	const referer = (req.headers['referer'] || '').toLowerCase();
+	const appVersion = req.headers['x-app-version'] || req.get('x-app-version');
 
 	// Check if request is from a web browser
 	const isWebBrowser = isBrowserRequest(userAgent, origin, referer);
@@ -32,23 +36,55 @@ const forceUpdateMiddleware = (req, res, next) => {
 		return next();
 	}
 
-	// Check if request is from a mobile app (old app patterns)
+	// Check version header first (if present)
+	if (appVersion && appVersion.trim()) {
+		const cleanVersion = appVersion.trim();
+		
+		// If version is valid and >= 2.0.0, allow through
+		if (semver.valid(cleanVersion) && semver.gte(cleanVersion, MINIMUM_VERSION)) {
+			return next();
+		}
+		
+		// If version is < 2.0.0 or invalid, force update
+		if (semver.valid(cleanVersion) && semver.lt(cleanVersion, MINIMUM_VERSION)) {
+			return sendForceUpdateResponse(res, UPDATE_URL);
+		}
+	}
+
+	// If no version header, check if it's an old mobile app pattern
 	const isOldMobileApp = isOldMobileAppRequest(userAgent, origin, referer);
 
 	// If detected as old mobile app, force update
-	// Return simple error response with version update message
 	if (isOldMobileApp) {
-		return res.status(400).json({
-			success: false,
-			forceUpdate: true,
-			message: 'कृपया mdresult.com पर जाकर app update करें।',
-			updateUrl: UPDATE_URL,
-		});
+		return sendForceUpdateResponse(res, UPDATE_URL);
 	}
 
 	// If not detected as old app or browser, allow through (could be new app)
 	next();
 };
+
+/**
+ * Send force update response
+ * Alert won't be dismissible (cancelable: false)
+ */
+function sendForceUpdateResponse(res, updateUrl) {
+	const updateMessage = 'कृपया mdresult.com पर जाकर app update करें।';
+	
+	return res.status(400).json({
+		success: false,
+		forceUpdate: true,
+		message: updateMessage,
+		error: updateMessage,
+		errorMessage: updateMessage,
+		updateUrl: updateUrl,
+		title: 'App Update Required',
+		body: updateMessage,
+		website: 'mdresult.com',
+		// Alert won't be dismissible
+		cancelable: false,
+		dismissible: false,
+	});
+}
 
 /**
  * Check if request is from a web browser
