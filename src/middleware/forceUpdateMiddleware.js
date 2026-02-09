@@ -36,19 +36,13 @@ const forceUpdateMiddleware = (req, res, next) => {
 	const isOldMobileApp = isOldMobileAppRequest(userAgent, origin, referer);
 
 	// If detected as old mobile app, force update
-	// Return error status (400) so app's error handler can catch and show it in alert/prompt
+	// Return simple error response with version update message
 	if (isOldMobileApp) {
 		return res.status(400).json({
 			success: false,
 			forceUpdate: true,
-			message: 'A new version of the app is available. Please update from https://mdresult.com',
+			message: 'कृपया mdresult.com पर जाकर app update करें।',
 			updateUrl: UPDATE_URL,
-			error: 'App update required',
-			// Additional fields for app error handler
-			data: {
-				forceUpdate: true,
-				updateUrl: UPDATE_URL,
-			},
 		});
 	}
 
